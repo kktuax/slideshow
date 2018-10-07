@@ -1,9 +1,6 @@
 package com.gmail.maxilandia.slideshow;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
+import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -11,6 +8,8 @@ import java.util.Optional;
 
 import javax.imageio.ImageIO;
 
+import org.imgscalr.Scalr;
+import org.imgscalr.Scalr.Rotation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,23 +24,43 @@ import com.drew.metadata.jpeg.JpegDirectory;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 class ImageLoader {
 
-	public static BufferedImage load(File imgFile) throws IOException, MetadataException, ImageProcessingException{
-		BufferedImage image = ImageIO.read(imgFile);
-		Optional<AffineTransform> transform = ImageInformation.readImageInformation(imgFile)
-			.getExifTransformation();
-		if(!transform.isPresent()){
-			return image;
-		}else{
-			AffineTransformOp op = new AffineTransformOp(transform.get(), AffineTransformOp.TYPE_BICUBIC);
-			BufferedImage destinationImage = op.createCompatibleDestImage(image, (image.getType() == BufferedImage.TYPE_BYTE_GRAY) ? image.getColorModel() : null);
-			Graphics2D g = destinationImage.createGraphics();
-			g.setBackground(Color.WHITE);
-			g.clearRect(0, 0, destinationImage.getWidth(), destinationImage.getHeight());
-			destinationImage = op.filter(image, destinationImage);
-			return destinationImage;
+	private final File imgFile;
+	
+	private final Dimension boundary;
+	
+	public BufferedImage load() throws IOException {
+		BufferedImage oImg = readAndRotate();
+		Dimension imgSize = new Dimension(oImg.getWidth(), oImg.getHeight());
+		int original_width = imgSize.width, original_height = imgSize.height;
+		int new_width = original_width, new_height = original_height;
+		if (original_width > boundary.width) {
+			new_width = boundary.width; // scale width to fit
+			new_height = (new_width * original_height) / original_width; // scale height to maintain aspect ratio
 		}
+		if (new_height > boundary.height) {
+			new_height = boundary.height; // scale height to fit instead
+			new_width = (new_height * original_width) / original_height; // scale width to maintain aspect ratio
+		}
+		return Scalr.resize(oImg, new_width, new_height);
+	}
+	
+	private BufferedImage readAndRotate() throws IOException {
+		BufferedImage image = ImageIO.read(imgFile);
+		try {
+			Optional<Rotation> rotation = ImageInformation.readImageInformation(imgFile)
+				.getRotation();
+			if(!rotation.isPresent()){
+				return image;
+			}else{
+				return Scalr.rotate(image, rotation.get());
+			}
+		} catch (MetadataException | ImageProcessingException e) {
+			LOGGER.warn(String.format("Problem reading rotation information: %s", e.getMessage()));
+			return image;
+		}		
 	}
 
 	@Data
@@ -50,57 +69,26 @@ class ImageLoader {
 		
 		private final int orientation, width, height;
 		
-		public Optional<AffineTransform> getExifTransformation() {
-			if(orientation == 1){
-				return Optional.empty();
-			}
-			AffineTransform t = new AffineTransform();
+		public Optional<Rotation> getRotation() {
 			switch (orientation) {
-			case 2: // Flip X
-				t.scale(-1.0, 1.0);
-				t.translate(-width, 0);
-				break;
 			case 3: // PI rotation
-				t.translate(width, height);
-				t.rotate(Math.PI);
-				break;
-			case 4: // Flip Y
-				t.scale(1.0, -1.0);
-				t.translate(0, -height);
-				break;
-			case 5: // - PI/2 and Flip X
-				t.rotate(-Math.PI / 2);
-				t.scale(-1.0, 1.0);
-				break;
+				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_180, orientation));
+				return Optional.of(Rotation.CW_180);
 			case 6: // -PI/2 and -width
-				t.translate(height, 0);
-				t.rotate(Math.PI / 2);
-				break;
-			case 7: // PI/2 and Flip
-				t.scale(-1.0, 1.0);
-				t.translate(-height, 0);
-				t.translate(0, width);
-				t.rotate(3 * Math.PI / 2);
-				break;
+				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_270, orientation));
+				return Optional.of(Rotation.CW_90);
 			case 8: // PI / 2
-				t.translate(0, width);
-				t.rotate(3 * Math.PI / 2);
-				break;
+				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_90, orientation));
+				return Optional.of(Rotation.CW_270);
 			}
-			LOGGER.info(String.format("Defined AffineTransform for orientation: %s", orientation));
-			return Optional.of(t);
+			return Optional.empty();
 		}
 		
 		public static ImageInformation readImageInformation(File imageFile) throws IOException, MetadataException, ImageProcessingException {
 			Metadata metadata = ImageMetadataReader.readMetadata(imageFile);
 			Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
 			JpegDirectory jpegDirectory = metadata.getFirstDirectoryOfType(JpegDirectory.class);
-			int orientation = 1;
-			try {
-				orientation = directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
-			} catch (MetadataException me) {
-				LOGGER.warn("Could not get orientation");
-			}
+			int orientation = directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
 			int width = jpegDirectory.getImageWidth();
 			int height = jpegDirectory.getImageHeight();
 			return new ImageInformation(orientation, width, height);

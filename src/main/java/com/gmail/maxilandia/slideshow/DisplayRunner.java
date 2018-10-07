@@ -7,7 +7,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Random;
 
-import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +31,7 @@ public class DisplayRunner implements CommandLineRunner {
 			LOGGER.info(String.format("Found resolution of %sx%s", screen.getWidth(), screen.getHeight()));
 			while (true) {
 				File file = files[rand.nextInt(files.length)];
-				BufferedImage img = scaleImage(ImageLoader.load(file), boundary);
+				BufferedImage img = new ImageLoader(file, boundary).load();
 				LOGGER.info(String.format("Displaying '%s' at resolution %sx%s for %s seconds", file.getName(), img.getWidth(), img.getHeight(), duration));
 				Graphics2D g2d = screen.createGraphics();
 				g2d.setPaint(Color.BLACK);
@@ -46,21 +45,6 @@ public class DisplayRunner implements CommandLineRunner {
 		}finally{
 			frameBuffer.close();
 		}
-	}
-
-	private static BufferedImage scaleImage(BufferedImage oImg, Dimension boundary) {
-		Dimension imgSize = new Dimension(oImg.getWidth(), oImg.getHeight());
-		int original_width = imgSize.width, original_height = imgSize.height;
-		int new_width = original_width, new_height = original_height;
-		if (original_width > boundary.width) {
-			new_width = boundary.width; // scale width to fit
-			new_height = (new_width * original_height) / original_width; // scale height to maintain aspect ratio
-		}
-		if (new_height > boundary.height) {
-			new_height = boundary.height; // scale height to fit instead
-			new_width = (new_height * original_width) / original_height; // scale width to maintain aspect ratio
-		}
-		return Scalr.resize(oImg, new_width, new_height);
 	}
 	
 	@Value("${folder}")
