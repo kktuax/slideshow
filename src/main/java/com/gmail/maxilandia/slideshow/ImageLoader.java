@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 import javax.imageio.ImageIO;
 
@@ -15,23 +16,20 @@ import org.slf4j.LoggerFactory;
 
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.imaging.ImageProcessingException;
-import com.drew.metadata.Directory;
-import com.drew.metadata.Metadata;
 import com.drew.metadata.MetadataException;
 import com.drew.metadata.exif.ExifIFD0Directory;
-import com.drew.metadata.jpeg.JpegDirectory;
 
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-class ImageLoader {
+class ImageLoader implements Callable<Image> {
 
 	private final File imgFile;
 	
 	private final Dimension boundary;
 	
-	public BufferedImage load() throws IOException {
+	@Override
+	public Image call() throws Exception {
 		BufferedImage oImg = readAndRotate();
 		Dimension imgSize = new Dimension(oImg.getWidth(), oImg.getHeight());
 		int original_width = imgSize.width, original_height = imgSize.height;
@@ -44,7 +42,7 @@ class ImageLoader {
 			new_height = boundary.height; // scale height to fit instead
 			new_width = (new_height * original_width) / original_height; // scale width to maintain aspect ratio
 		}
-		return Scalr.resize(oImg, new_width, new_height);
+		return new Image(imgFile, Scalr.resize(oImg, new_width, new_height));
 	}
 	
 	private BufferedImage readAndRotate() throws IOException {
@@ -63,13 +61,12 @@ class ImageLoader {
 		}		
 	}
 
-	@Data
 	@RequiredArgsConstructor
 	private static class ImageInformation {
 		
-		private final int orientation, width, height;
+		private final int orientation;
 		
-		public Optional<Rotation> getRotation() {
+		private Optional<Rotation> getRotation() {
 			switch (orientation) {
 			case 3: // PI rotation
 				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_180, orientation));
@@ -85,13 +82,10 @@ class ImageLoader {
 		}
 		
 		public static ImageInformation readImageInformation(File imageFile) throws IOException, MetadataException, ImageProcessingException {
-			Metadata metadata = ImageMetadataReader.readMetadata(imageFile);
-			Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
-			JpegDirectory jpegDirectory = metadata.getFirstDirectoryOfType(JpegDirectory.class);
-			int orientation = directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
-			int width = jpegDirectory.getImageWidth();
-			int height = jpegDirectory.getImageHeight();
-			return new ImageInformation(orientation, width, height);
+			int orientation = ImageMetadataReader.readMetadata(imageFile)
+				.getFirstDirectoryOfType(ExifIFD0Directory.class)
+				.getInt(ExifIFD0Directory.TAG_ORIENTATION);
+			return new ImageInformation(orientation);
 		}
 	}
 

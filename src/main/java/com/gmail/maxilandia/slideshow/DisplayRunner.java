@@ -1,11 +1,15 @@
 package com.gmail.maxilandia.slideshow;
 
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,27 +29,37 @@ public class DisplayRunner implements CommandLineRunner {
 		LOGGER.info(String.format("Found %s images in %s", files.length, folder));
 		NarSystem.loadLibrary();
 		FrameBuffer frameBuffer = new FrameBuffer(fbLocation);
+		ExecutorService es = Executors.newSingleThreadExecutor();
 		try{
 			BufferedImage screen = frameBuffer.getScreen();
 			Dimension boundary = new Dimension(screen.getWidth(), screen.getHeight());
 			LOGGER.info(String.format("Found resolution of %sx%s", screen.getWidth(), screen.getHeight()));
+			Future<Image> fi = es.submit(new ImageLoader(files[rand.nextInt(files.length)], boundary));
 			while (true) {
-				File file = files[rand.nextInt(files.length)];
-				BufferedImage img = new ImageLoader(file, boundary).load();
-				LOGGER.info(String.format("Displaying '%s' at resolution %sx%s for %s seconds", file.getName(), img.getWidth(), img.getHeight(), duration));
-				Graphics2D g2d = screen.createGraphics();
-				g2d.setPaint(Color.BLACK);
-				g2d.fillRect(0, 0, screen.getWidth(), screen.getHeight());
-				int leftPos = img.getWidth() < boundary.getWidth() ? Integer.valueOf((int) (boundary.getWidth() - img.getWidth())) / 2  : 0;
-				int topPos = img.getHeight() < boundary.getHeight() ? Integer.valueOf((int) (boundary.getHeight() - img.getHeight())) / 2  : 0;
-				g2d.drawImage(img, leftPos, topPos, null);
-				g2d.dispose();
-				Thread.sleep(1000 * duration);
+				boolean displayNextImage = false;
+				if(fi.isDone()){
+					displayNextImage = lastDisplayedTime != null ? 
+						Duration.between(lastDisplayedTime, Instant.now()).get(ChronoUnit.SECONDS) >= duration : 
+						true;
+				}
+				if(!displayNextImage){
+					Thread.sleep(100);
+				}else{
+					try{
+						fi.get().display(screen);
+						lastDisplayedTime = Instant.now();
+					}catch(Exception e){
+						LOGGER.warn(String.format("Error reading image: %s", e.getMessage()));
+					}
+					fi = es.submit(new ImageLoader(files[rand.nextInt(files.length)], boundary));
+				}				
 			}
 		}finally{
 			frameBuffer.close();
 		}
 	}
+	
+	private Instant lastDisplayedTime;
 	
 	@Value("${folder}")
 	private File folder;
