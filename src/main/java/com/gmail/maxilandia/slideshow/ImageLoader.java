@@ -55,8 +55,8 @@ class ImageLoader implements Callable<Image> {
 			}else{
 				return Scalr.rotate(image, rotation.get());
 			}
-		} catch (MetadataException | ImageProcessingException e) {
-			LOGGER.warn(String.format("Problem reading rotation information: %s", e.getMessage()));
+		} catch (Exception e) {
+			LOGGER.debug(String.format("Problem reading rotation information: %s", e.getMessage()));
 			return image;
 		}		
 	}
@@ -69,13 +69,13 @@ class ImageLoader implements Callable<Image> {
 		private Optional<Rotation> getRotation() {
 			switch (orientation) {
 			case 3: // PI rotation
-				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_180, orientation));
+				LOGGER.debug(String.format("Defined rotation %s for orientation: %s", Rotation.CW_180, orientation));
 				return Optional.of(Rotation.CW_180);
 			case 6: // -PI/2 and -width
-				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_270, orientation));
+				LOGGER.debug(String.format("Defined rotation %s for orientation: %s", Rotation.CW_270, orientation));
 				return Optional.of(Rotation.CW_90);
 			case 8: // PI / 2
-				LOGGER.info(String.format("Defined rotation %s for orientation: %s", Rotation.CW_90, orientation));
+				LOGGER.debug(String.format("Defined rotation %s for orientation: %s", Rotation.CW_90, orientation));
 				return Optional.of(Rotation.CW_270);
 			}
 			return Optional.empty();
