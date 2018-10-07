@@ -7,8 +7,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Random;
 
-import javax.imageio.ImageIO;
-
 import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,12 +32,14 @@ public class DisplayRunner implements CommandLineRunner {
 			LOGGER.info(String.format("Found resolution of %sx%s", screen.getWidth(), screen.getHeight()));
 			while (true) {
 				File file = files[rand.nextInt(files.length)];
-				BufferedImage img = scaleImage(ImageIO.read(file), boundary);
+				BufferedImage img = scaleImage(ImageLoader.load(file), boundary);
 				LOGGER.info(String.format("Displaying '%s' at resolution %sx%s for %s seconds", file.getName(), img.getWidth(), img.getHeight(), duration));
 				Graphics2D g2d = screen.createGraphics();
 				g2d.setPaint(Color.BLACK);
 				g2d.fillRect(0, 0, screen.getWidth(), screen.getHeight());
-				g2d.drawImage(img, 0, 0, null);
+				int leftPos = img.getWidth() < boundary.getWidth() ? Integer.valueOf((int) (boundary.getWidth() - img.getWidth())) / 2  : 0;
+				int topPos = img.getHeight() < boundary.getHeight() ? Integer.valueOf((int) (boundary.getHeight() - img.getHeight())) / 2  : 0;
+				g2d.drawImage(img, leftPos, topPos, null);
 				g2d.dispose();
 				Thread.sleep(1000 * duration);
 			}
