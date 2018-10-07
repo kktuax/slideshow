@@ -1,5 +1,6 @@
 package com.gmail.maxilandia.slideshow;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -36,6 +37,8 @@ public class DisplayRunner implements CommandLineRunner {
 				BufferedImage img = scaleImage(ImageIO.read(file), boundary);
 				LOGGER.info(String.format("Displaying '%s' at resolution %sx%s for %s seconds", file.getName(), img.getWidth(), img.getHeight(), duration));
 				Graphics2D g2d = screen.createGraphics();
+				g2d.setPaint(Color.BLACK);
+				g2d.fillRect(0, 0, screen.getWidth(), screen.getHeight());
 				g2d.drawImage(img, 0, 0, null);
 				g2d.dispose();
 				Thread.sleep(1000 * duration);
