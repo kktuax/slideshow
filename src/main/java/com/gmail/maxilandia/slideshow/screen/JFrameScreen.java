@@ -1,5 +1,7 @@
 package com.gmail.maxilandia.slideshow.screen;
 
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.image.BufferedImage;
 import java.util.function.Consumer;
 
@@ -11,33 +13,45 @@ public class JFrameScreen implements Screen {
 
 	private final JFrame frame;
 	
-	private final BufferedImage screen;
+	private JLabel label;
+	
+	private BufferedImage screen;
 	
 	public JFrameScreen(int width, int height) {
 		super();
-		this.width = width;
-		this.height = height;
 		this.frame = new JFrame();
-		frame.setSize(width, height);
-		frame.setVisible(true);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		this.screen = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
-		ImageIcon icon = new ImageIcon(screen);
-		frame.getContentPane().add(new JLabel(icon));
+		this.frame.setSize(width, height);
+		this.frame.setVisible(true);
+		this.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		addLabel();
+		this.frame.addComponentListener(new ComponentAdapter() {
+			public void componentResized(ComponentEvent componentEvent) {
+				addLabel();
+				frame.revalidate();
+				frame.repaint();
+			}
+		});
 	}
-
-	private final int width, height;
+	
+	private void addLabel(){
+		if(label != null){
+			frame.getContentPane().remove(label);
+		}
+		screen = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_4BYTE_ABGR);
+		label = new JLabel(new ImageIcon(screen));
+		frame.getContentPane().add(label);
+	}
 	
 	@Override
 	public int getWidth() {
-		return width;
+		return frame.getWidth();
 	}
 
 	@Override
 	public int getHeight() {
-		return height;
+		return frame.getHeight();
 	}
-
+	
 	@Override
 	public void update(Consumer<BufferedImage> screenConsumer) {
 		screenConsumer.accept(screen);

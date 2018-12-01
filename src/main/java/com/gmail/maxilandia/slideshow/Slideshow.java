@@ -33,8 +33,7 @@ class Slideshow {
 	private Future<Image> fi;
 	
 	public void display() {
-		Dimension boundary = new Dimension(screen.getWidth(), screen.getHeight());
-		fi = es.submit(new ImageLoader(imageFiles.get(0), boundary));
+		fi = es.submit(new ImageLoader(imageFiles.get(0), new Dimension(screen.getWidth(), screen.getHeight())));
 		for(File imageFile : imageFiles.subList(1, imageFiles.size())){
 			while(!displayNextImage()){
 				tryToSleep();
@@ -45,7 +44,7 @@ class Slideshow {
 			}catch(Exception e){
 				LOGGER.warn("Error reading image", e);
 			}
-			fi = es.submit(new ImageLoader(imageFile, boundary));
+			fi = es.submit(new ImageLoader(imageFile, new Dimension(screen.getWidth(), screen.getHeight())));
 		}
 	}
 
