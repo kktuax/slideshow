@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
 import com.gmail.maxilandia.slideshow.screen.FbScreen;
+import com.gmail.maxilandia.slideshow.screen.JFrameScreen;
 import com.gmail.maxilandia.slideshow.screen.Screen;
 
 @SpringBootApplication
@@ -17,7 +18,11 @@ public class SlideshowApp {
 	
 	@Bean
 	public static Screen screen(@Value("${frame-buffer-location}") String fbLocation){
-		return new FbScreen(fbLocation);
+		if(fbLocation != null && !fbLocation.trim().isEmpty()){
+			return new FbScreen(fbLocation);
+		}else{
+			return new JFrameScreen(800, 600);
+		}
 	}
 	
 }
