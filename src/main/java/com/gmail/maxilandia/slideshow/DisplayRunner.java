@@ -1,17 +1,11 @@
 package com.gmail.maxilandia.slideshow;
 
-import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -24,10 +18,6 @@ import org.tw.pi.framebuffer.FrameBuffer;
 
 @Component
 public class DisplayRunner implements CommandLineRunner {
-
-	private final Random rand = new Random();
-	
-	private final ExecutorService es = Executors.newSingleThreadExecutor();
 	
 	@Override
 	public void run(String... args) throws Exception {
@@ -36,38 +26,27 @@ public class DisplayRunner implements CommandLineRunner {
 		List<File> imageFiles = Files
 			.find(folder.toPath(), Integer.MAX_VALUE, (p, at) -> p.toFile().getName().toLowerCase().endsWith(".jpg"))
 			.map(p -> p.toFile())
+			.sorted(randomOrder())
 			.collect(Collectors.toList());
 		LOGGER.info(String.format("Found %s images in %s", imageFiles.size(), folder));
 		try{
 			BufferedImage screen = frameBuffer.getScreen();
-			Dimension boundary = new Dimension(screen.getWidth(), screen.getHeight());
 			LOGGER.info(String.format("Found resolution of %sx%s", screen.getWidth(), screen.getHeight()));
-			Future<Image> fi = es.submit(new ImageLoader(imageFiles.get(rand.nextInt(imageFiles.size())), boundary));
-			while (true) {
-				boolean displayNextImage = false;
-				if(fi.isDone()){
-					displayNextImage = lastDisplayedTime != null ? 
-						Duration.between(lastDisplayedTime, Instant.now()).get(ChronoUnit.SECONDS) >= duration : 
-						true;
-				}
-				if(!displayNextImage){
-					Thread.sleep(100);
-				}else{
-					try{
-						fi.get().display(screen);
-						lastDisplayedTime = Instant.now();
-					}catch(Exception e){
-						LOGGER.warn("Error reading image", e);
-					}
-					fi = es.submit(new ImageLoader(imageFiles.get(rand.nextInt(imageFiles.size())), boundary));
-				}				
-			}
+			Slideshow slideshow = new Slideshow(imageFiles, screen, duration); 
+			slideshow.display();
 		}finally{
 			frameBuffer.close();
 		}
 	}
-	
-	private Instant lastDisplayedTime;
+
+	private static Comparator<File> randomOrder() {
+		ThreadLocalRandom r = ThreadLocalRandom.current();
+		int x = r.nextInt(), y = r.nextInt();
+		boolean b = r.nextBoolean();
+		return Comparator.comparingInt((File s) -> s.hashCode() ^ x)
+			.thenComparingInt(s -> s.getAbsolutePath().length() ^ y)
+			.thenComparing(b ? Comparator.naturalOrder() : Comparator.reverseOrder());
+	}
 	
 	@Value("${folder}")
 	private File folder;
