@@ -1,7 +1,6 @@
 package com.gmail.maxilandia.slideshow;
 
 import java.awt.Dimension;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
@@ -14,6 +13,8 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.gmail.maxilandia.slideshow.screen.Screen;
+
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -23,7 +24,7 @@ class Slideshow {
 
 	private final List<File> imageFiles;
 	
-	private final BufferedImage screen;
+	private final Screen screen;
 	
 	private final Integer duration;
 
@@ -33,13 +34,13 @@ class Slideshow {
 	
 	public void display() {
 		Dimension boundary = new Dimension(screen.getWidth(), screen.getHeight());
-		Future<Image> fi = es.submit(new ImageLoader(imageFiles.get(0), boundary));
+		fi = es.submit(new ImageLoader(imageFiles.get(0), boundary));
 		for(File imageFile : imageFiles.subList(1, imageFiles.size())){
 			while(!displayNextImage()){
 				tryToSleep();
 			}
 			try{
-				fi.get().display(screen);
+				screen.update(fi.get());
 				lastDisplayedTime = Instant.now();
 			}catch(Exception e){
 				LOGGER.warn("Error reading image", e);

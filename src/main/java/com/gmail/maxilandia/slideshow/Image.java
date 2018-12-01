@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,13 +14,14 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Data
-public class Image {
+public class Image implements Consumer<BufferedImage> {
 
 	private final File file;
 	
 	private final BufferedImage img;
 	
-	void display(BufferedImage screen){
+	@Override
+	public void accept(BufferedImage screen) {
 		LOGGER.info(String.format("Displaying '%s' at resolution %sx%s", file.getName(), img.getWidth(), img.getHeight()));
 		Graphics2D g2d = screen.createGraphics();
 		g2d.setPaint(Color.BLACK);
